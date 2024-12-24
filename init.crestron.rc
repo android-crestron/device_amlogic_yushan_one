@@ -1,0 +1,179 @@
+
+on init
+    # shared memory used by middleware
+    mkdir /mnt/shm 0775 system graphics
+    mount tmpfs tmpfs /mnt/shm mode=0775,uid=1000,gid=1003,size=50m
+    # Mountpoint used for jffs2 datastore
+    mkdir /mnt/datastore 0777 root system
+
+    #For ADService Kereros authentication
+    mkdir -p /dev/shm/temp
+    symlink /dev/shm/temp /tmp
+    
+on fs
+service cleanUpCache /system/bin/cleanUpCache.sh FORMAT
+    class main    
+    oneshot
+
+service dhcpcd_lan /system/bin/dhcpcd -A -d -B eth0
+    class late_start
+	user root
+	group root
+    disabled
+#    oneshot
+
+service cresterrlog /system/bin/crestErrorLogServer 
+    class main
+    disabled
+
+service a_console /system/bin/a_console
+    class main
+    disabled
+
+service cipclientd /system/bin/cipclientd
+    class main
+    disabled
+
+service cipserverd /system/bin/cipserverd
+    class main
+    disabled
+
+service ctpd /system/bin/ctpd
+    class main
+    disabled
+
+service telnetd_debug /system/bin/telnetd -F -l /system/bin/bash
+    class main
+    disabled
+
+service platformd /system/bin/platformd
+    class main
+    disabled
+
+service redis /system/bin/redis-server --module-add /system/lib/json.so --save 300 10 --save 600 1 --dir /data/cresstore/ --bind 127.0.0.1
+    class main
+    disabled
+
+service crestdiscovery /system/bin/CrestronDiscovery
+    class main
+    disabled
+
+#create a service to start csio
+service csiod /system/bin/logwrapper /system/bin/csio
+    class main
+    disabled
+
+service ftpd /system/bin/tcpsvd -vE 0.0.0.0 21 /system/bin/ftpd -w /mnt/sdcard/ROMDISK/
+    class main
+
+# build registry
+service crestInit /system/bin/logwrapper /system/bin/crestInit.sh
+    class main
+#    disabled
+    oneshot
+
+service crestusbcons /system/bin/telnetSSHProxy /dev/ttyGS0
+    class main
+    disabled
+
+service crestsercons /system/bin/telnetSSHProxy /dev/ttyO2 115200
+    class main
+    disabled
+
+service crestRecBoot /system/bin/logwrapper /system/bin/logBootComplete.sh
+    class main
+    disabled
+    oneshot
+
+service telnetd /system/bin/telnetd -F -l /system/bin/telnetSSHProxy
+    class main
+    disabled
+
+service sshd /system/bin/startSSHD.sh
+    class main
+    disabled
+
+service kMemRclmd /system/bin/kernelCacheReclaim.sh
+    class main
+    disabled
+
+# run watchdog keep alive
+# TODO FIND WATCHDOG
+#service watchdog /system/bin/pet 20
+#    class main
+#    disabled
+#    oneshot
+
+service autoUpdater /system/bin/logwrapper /system/bin/autoUpdater  
+    class main
+    disabled
+    
+service ravaPhone /system/bin/logwrapper /system/bin/ravaApp
+    class main
+    disabled
+    
+service bluePhone /system/bin/logwrapper /system/bin/bluePhone  
+    class main
+    disabled
+    
+service snmpd /system/bin/snmpd
+    class main
+    disabled
+
+service lldpd /system/bin/lldpd -d -u /dev/shm/crestron/lldpd.socket -L /system/bin/lldpcli.sh
+        class main
+
+service AuditLogService /system/bin/AuditLogService
+        class main
+        disabled
+
+service IpBlockerService /system/bin/IpBlockerService
+        class main
+        disabled
+
+service FITCProxy /system/bin/FITCProxy
+    class main
+    disabled
+
+# Init Crestron Network Stuff
+service crest8021X /system/bin/logwrapper /system/bin/wpa_supplicant -Dwired -ieth0 -c/data/misc/wifi/wpa_supplicant_eth0.conf
+    class main
+    user root
+    disabled
+
+# Have the Crestron overlay boot animation launched on startup 
+service overlaybootanim /system/bin/overlayBootAnimation
+    class main
+    user root
+    group root
+    disabled
+    oneshot
+
+on property:sys.boot_completed=1
+    start crestRecBoot
+
+on property:krnl.cache.reclaim.inUpgrade=1
+    start kMemRclmd
+
+# start webserver processes separately
+service fcgiserverd /system/bin/webserverscripts/startfcgiserverd.sh 
+	class main
+	disabled
+
+service URIProcessor /system/bin/webserverscripts/startURIProcessor.sh 
+	class main
+	disabled
+
+
+service CPHProcessor /system/bin/webserverscripts/startCPHProcessor.sh
+      class main
+      disabled
+
+	  
+service lighttpd /system/bin/webserverscripts/startlighttpd.sh
+	class main
+	user root
+	group root
+	disabled
+
+
